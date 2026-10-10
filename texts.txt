@@ -1,0 +1,34 @@
+# Text documents to index next to the images - one per line. Lines starting with # are ignored.
+# Add your own lines, then press "Re-index" in the app.
+A golden retriever runs across a grassy park chasing a tennis ball.
+A cup of coffee steams on a wooden cafe table next to an open notebook.
+Snow-capped mountains reflected in a calm alpine lake at dawn.
+Waves crash against dark rocks on a windy coastline.
+A laptop, phone and headphones arranged neatly on a white desk.
+City skyline lit up at night with light trails from traffic on the highway below.
+A narrow cobblestone street in an old European town.
+A dense pine forest covered in morning fog.
+Sunset over the desert with long shadows across the sand dunes.
+A bowl of fresh fruit with strawberries, blueberries and sliced banana.
+An old wooden pier stretching into a misty lake.
+A cat sleeping curled up on a sofa in the afternoon sun.
+Rows of books on tall library shelves.
+A person hiking along a rocky ridge with a backpack.
+Close-up of raindrops on a window pane.
+A field of yellow flowers under a bright blue sky.
+An abandoned building with peeling paint and broken windows.
+A bicycle leaning against a brick wall.
+Starry night sky over a silhouetted mountain range.
+A busy train station with commuters walking in every direction.
+A bridge spanning a wide river in a modern city.
+Autumn leaves in red and orange covering a forest path.
+A vintage camera and printed photographs on a table.
+A tropical beach with turquoise water and palm trees.
+A snowy road winding through a winter landscape.
+A modern glass office building with a green rooftop garden.
+Solar panels installed on the roof of a commercial building.
+Quarterly revenue grew 12 percent, driven by strong subscription sales.
+The patient was prescribed antibiotics for a bacterial infection.
+Preheat the oven to 180 degrees and bake for 25 minutes.
+The football team won the championship after a dramatic penalty shootout.
+Python is a popular programming language for data science.

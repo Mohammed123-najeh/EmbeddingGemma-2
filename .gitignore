@@ -1,0 +1,19 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Generated at runtime: embeddings cache and thumbnails
+index/
+
+# Your images stay local - only the placeholder is tracked
+images/*
+!images/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

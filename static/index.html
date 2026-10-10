@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EmbeddingGemma 2 Search</title>
+<style>
+  :root {
+    --bg: #f6f6f3; --surface: #ffffff; --surface-2: #f0efeb; --text: #1c1c1a; --muted: #6b6a64;
+    --border: #e2e1dc; --accent: #2a63d4; --accent-soft: #e7eefb; --danger: #c2412d;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #131312; --surface: #1c1c1a; --surface-2: #252522; --text: #ecebe6; --muted: #9b9a93;
+      --border: #30302c; --accent: #7ea6f6; --accent-soft: #1f2c46; --danger: #f08a75;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  h1 span { color: var(--muted); font-weight: 500; }
+  .status { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9a227; flex: none; }
+  .dot.ok { background: #2e9e5b; } .dot.err { background: var(--danger); }
+  .progress { height: 3px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin: -8px 0 14px; display: none; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; }
+  .searchbar { display: flex; gap: 10px; align-items: stretch; }
+  .field { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0;
+           border: 1px solid var(--border); border-radius: 10px; padding: 6px 8px 6px 12px; background: var(--bg); }
+  .field:focus-within { border-color: var(--accent); }
+  .field input[type=text] { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; padding: 6px 0; }
+  .chip-img { display: none; align-items: center; gap: 6px; background: var(--surface-2); border-radius: 8px; padding: 3px 4px 3px 3px; flex: none; }
+  .chip-img img { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; display: block; }
+  .chip-img button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 4px; }
+  button { font: inherit; cursor: pointer; }
+  .btn { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 10px; padding: 8px 14px; white-space: nowrap; }
+  .btn:hover { background: var(--surface-2); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 8px 20px; }
+  @media (prefers-color-scheme: dark) { .btn.primary { color: #0f1729; } }
+  .btn.primary:disabled { opacity: .5; cursor: default; }
+  .icon-btn { border: 0; background: transparent; color: var(--muted); padding: 6px; border-radius: 8px; display: flex; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+  .options { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-left: 6px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); padding: 4px 10px; font-size: 13px; }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  label.toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .options .spacer { flex: 1; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+  @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; }
+  .stat .label { font-size: 12px; color: var(--muted); }
+  .stat .value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .stat .value small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 3px; }
+  .stat .sub { font-size: 12px; color: var(--muted); }
+  .stat.main { border-color: var(--accent); background: var(--accent-soft); }
+  .stat.main .value { color: var(--accent); }
+  .summary { margin: 18px 2px 10px; font-size: 13px; color: var(--muted); min-height: 20px; }
+  .summary b { color: var(--text); font-weight: 600; }
+  .error { color: var(--danger); }
+  .results { display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .results { grid-template-columns: 1fr; } }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; position: relative; }
+  .card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; display: block; cursor: zoom-in; background: var(--surface-2); }
+  .card .meta { padding: 7px 9px 9px; font-size: 12px; color: var(--muted); }
+  .card .row { display: flex; justify-content: space-between; gap: 6px; }
+  .card .row b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .bar { height: 3px; background: var(--surface-2); border-radius: 2px; margin-top: 5px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); }
+  .card .similar { position: absolute; top: 8px; right: 8px; opacity: 0; transition: opacity .15s;
+                   background: rgba(0,0,0,.65); color: #fff; border: 0; border-radius: 8px; padding: 4px 9px; font-size: 12px; }
+  .card:hover .similar, .card .similar:focus { opacity: 1; }
+  .rank { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; border-radius: 6px; padding: 1px 6px; }
+  .texts { display: flex; flex-direction: column; gap: 8px; }
+  .tcard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px 11px; font-size: 14px; }
+  .tcard .row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .tcard .row b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .link { border: 0; background: transparent; color: var(--accent); padding: 0; font-size: 12px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 30px 0; text-align: center; }
+
+  .drop-hint { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 18%, transparent);
+               border: 3px dashed var(--accent); display: none; align-items: center; justify-content: center;
+               font-size: 22px; font-weight: 600; color: var(--accent); z-index: 20; pointer-events: none; }
+  dialog { border: 0; padding: 0; border-radius: 14px; background: var(--surface); color: var(--text); max-width: min(1100px, 94vw); box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog img { display: block; max-width: 100%; max-height: 78vh; margin: 0 auto; }
+  dialog .bar-row { display: flex; gap: 10px; align-items: center; padding: 10px 14px; font-size: 13px; color: var(--muted); }
+  dialog .bar-row span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>EmbeddingGemma 2 <span>· image &amp; text search</span></h1>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">Connecting…</span></div>
+  </header>
+  <div class="progress" id="progress"><div></div></div>
+
+  <section class="panel">
+    <form class="searchbar" id="form">
+      <div class="field">
+        <div class="chip-img" id="chip"><img id="chipImg" alt="query image"><button type="button" id="chipClear" title="Remove image">×</button></div>
+        <input type="text" id="q" placeholder="Describe what you're looking for… or add / paste / drop an image" autocomplete="off" autofocus>
+        <button type="button" class="icon-btn" id="pick" title="Search with an image">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>
+        </button>
+        <input type="file" id="file" accept="image/*" hidden>
+      </div>
+      <button class="btn primary" id="go" type="submit">Search</button>
+    </form>
+
+    <div class="options">
+      <span>Vector size<span class="seg" id="dims"></span></span>
+      <span>Results<span class="seg" id="ks"></span></span>
+      <label class="toggle" title="Prefix text queries with 'task: search result | query:' as the model card recommends">
+        <input type="checkbox" id="usePrompt" checked> Query prompt</label>
+      <span class="spacer"></span>
+      <button class="btn" id="reindex" type="button" title="Pick up new files in images/ and lines in texts.txt">Re-index</button>
+    </div>
+  </section>
+
+  <div class="stats" id="stats" hidden>
+    <div class="stat main"><div class="label">Total search time</div><div class="value" id="stTotal"></div><div class="sub">click → results on screen</div></div>
+    <div class="stat"><div class="label">Model encoding</div><div class="value" id="stEncode"></div><div class="sub" id="stEncodeSub">turning the query into a vector</div></div>
+    <div class="stat"><div class="label">Ranking</div><div class="value" id="stRank"></div><div class="sub">comparing against every item</div></div>
+    <div class="stat"><div class="label">Items searched</div><div class="value" id="stItems"></div><div class="sub" id="stItemsSub"></div></div>
+  </div>
+  <div class="summary" id="summary"></div>
+
+  <div class="results" id="results" hidden>
+    <section><h2>Images</h2><div class="grid" id="imgGrid"></div></section>
+    <section><h2>Text</h2><div class="texts" id="textList"></div></section>
+  </div>
+  <div class="empty" id="empty">Search by text, by image, or both together (e.g. add a photo and type “at night”).</div>
+</div>
+
+<div class="drop-hint" id="dropHint">Drop image to search</div>
+<dialog id="viewer">
+  <img id="viewerImg" alt="">
+  <div class="bar-row"><span id="viewerName"></span>
+    <button class="btn" id="viewerSimilar">Find similar</button>
+    <button class="btn" id="viewerClose">Close</button></div>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const state = { dim: 768, k: 24, file: null, last: null, ready: false, wasBusy: false };
+
+// ---------- options ----------
+function seg(el, values, key, fmt) {
+  el.replaceChildren(...values.map(v => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = fmt ? fmt(v) : v;
+    b.className = v === state[key] ? "on" : "";
+    b.onclick = () => { state[key] = v; seg(el, values, key, fmt); rerun(); };
+    return b;
+  }));
+}
+seg($("dims"), [768, 512, 256, 128], "dim");
+seg($("ks"), [12, 24, 48], "k");
+$("usePrompt").onchange = rerun;
+
+// ---------- query image ----------
+function setImage(file) {
+  if (!file || !file.type.startsWith("image/")) return;
+  state.file = file;
+  $("chipImg").src = URL.createObjectURL(file);
+  $("chip").style.display = "flex";
+  $("q").placeholder = "Optional: add text to steer the image (e.g. “at night”)";
+  submit();
+}
+function clearImage() {
+  state.file = null; $("chip").style.display = "none"; $("file").value = "";
+  $("q").placeholder = "Describe what you're looking for… or add / paste / drop an image";
+}
+$("pick").onclick = () => $("file").click();
+$("file").onchange = e => setImage(e.target.files[0]);
+$("chipClear").onclick = () => { clearImage(); $("q").focus(); };
+window.addEventListener("paste", e => {
+  const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith("image/"));
+  if (item) { e.preventDefault(); setImage(item.getAsFile()); }
+});
+let dragDepth = 0;
+window.addEventListener("dragenter", e => { e.preventDefault(); dragDepth++; $("dropHint").style.display = "flex"; });
+window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("dropHint").style.display = "none"; } });
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => {
+  e.preventDefault(); dragDepth = 0; $("dropHint").style.display = "none";
+  setImage(e.dataTransfer.files[0]);
+});
+
+// ---------- search ----------
+$("form").onsubmit = e => { e.preventDefault(); submit(); };
+function submit() {
+  const text = $("q").value.trim();
+  if (!text && !state.file) return;
+  search({ text, file: state.file });
+}
+function rerun() { if (state.last) search(state.last); }
+
+async function search(q) {
+  if (!state.ready) { showSummary("The model is still loading — try again in a moment.", true); return; }
+  state.last = q;
+  const fd = new FormData();
+  fd.append("text", q.text || "");
+  if (q.ref) fd.append("ref", q.ref);
+  if (q.file) fd.append("image", q.file, q.file.name || "query.png");
+  fd.append("k", state.k); fd.append("dim", state.dim);
+  fd.append("use_prompt", $("usePrompt").checked);
+  $("go").disabled = true;
+  const started = performance.now();
+  try {
+    const r = await fetch("/api/search", { method: "POST", body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || r.statusText);
+    render(data, q);
+    await new Promise(requestAnimationFrame);   // count until the results are painted
+    showStats(data, q, performance.now() - started);
+  } catch (err) {
+    showSummary(err.message, true);
+  } finally {
+    $("go").disabled = false;
+  }
+}
+
+function showSummary(msg, isError) {
+  const s = $("summary"); s.replaceChildren(); s.className = "summary" + (isError ? " error" : "");
+  if (isError) $("stats").hidden = true;
+  s.textContent = msg;
+}
+
+function describe(q, data) {
+  if (q.ref) return data.source?.kind === "image" ? `Similar to image “${data.source.path}”` : `Similar to text “${data.source?.text ?? ""}”`;
+  if (q.file && q.text) return `Image + text “${q.text}”`;
+  if (q.file) return "Similar to your image";
+  return `“${q.text}”`;
+}
+
+function render(data, q) {
+  const s = $("summary"); s.className = "summary"; s.replaceChildren();
+  const b = document.createElement("b"); b.textContent = describe(q, data);
+  const promptNote = (q.text && !q.ref) ? ($("usePrompt").checked ? " · query prompt on" : " · query prompt off") : "";
+  s.append(b, ` · ${state.dim}-d vectors${promptNote}`);
+
+  $("results").hidden = false; $("empty").hidden = true;
+  const maxI = Math.max(...data.images.map(r => r.score), 1e-6);
+  $("imgGrid").replaceChildren(...(data.images.length ? data.images.map((r, i) => imageCard(r, i, maxI))
+                                                     : [emptyNote("No images indexed yet — put files in the images/ folder and press Re-index.")]));
+  const maxT = Math.max(...data.texts.map(r => r.score), 1e-6);
+  $("textList").replaceChildren(...(data.texts.length ? data.texts.map((r, i) => textCard(r, i, maxT))
+                                                     : [emptyNote("No texts indexed — add lines to texts.txt.")]));
+}
+
+function fmtMs(ms) {
+  const el = document.createElement("span");
+  if (ms >= 1000) { el.append((ms / 1000).toFixed(2)); }
+  else { el.append(ms < 10 ? ms.toFixed(1) : Math.round(ms).toString()); }
+  const unit = document.createElement("small"); unit.textContent = ms >= 1000 ? "s" : "ms";
+  el.append(unit); return el;
+}
+function showStats(data, q, totalMs) {
+  const t = data.timing;
+  $("stTotal").replaceChildren(fmtMs(totalMs));
+  $("stEncode").replaceChildren(fmtMs(t.encode_ms));
+  $("stEncodeSub").textContent = q.ref ? "skipped — reused the stored vector"
+    : t.cached ? "skipped — query vector was cached" : "turning the query into a vector";
+  $("stRank").replaceChildren(fmtMs(t.search_ms));
+  $("stItems").textContent = (data.searched ?? 0).toLocaleString();
+  $("stItemsSub").textContent = `at ${state.dim} dimensions`;
+  $("stats").hidden = false;
+}
+
+function emptyNote(msg) { const d = document.createElement("div"); d.className = "empty"; d.textContent = msg; return d; }
+function mediaUrl(path) { return "/media/" + path.split("/").map(encodeURIComponent).join("/"); }
+function scoreBar(score, max) {
+  const bar = document.createElement("div"); bar.className = "bar";
+  const fill = document.createElement("div"); fill.style.width = Math.max(2, 100 * score / max) + "%";
+  bar.append(fill); return bar;
+}
+
+function imageCard(r, i, max) {
+  const card = document.createElement("div"); card.className = "card";
+  const img = document.createElement("img");
+  img.src = `/thumbs/${r.id}.jpg`; img.alt = r.path; img.loading = "lazy";
+  img.onclick = () => openViewer(r);
+  const rank = document.createElement("span"); rank.className = "rank"; rank.textContent = `#${i + 1}`;
+  const sim = document.createElement("button"); sim.className = "similar"; sim.textContent = "Find similar";
+  sim.onclick = () => searchSimilar(r);
+  const meta = document.createElement("div"); meta.className = "meta";
+  const row = document.createElement("div"); row.className = "row";
+  const name = document.createElement("span"); name.textContent = r.path.split("/").slice(-2).join("/");
+  name.title = r.path;
+  name.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+  const sc = document.createElement("b"); sc.textContent = r.score.toFixed(3);
+  row.append(name, sc); meta.append(row, scoreBar(r.score, max));
+  card.append(img, rank, sim, meta); return card;
+}
+
+function textCard(r, i, max) {
+  const card = document.createElement("div"); card.className = "tcard";
+  const p = document.createElement("div"); p.textContent = r.text;
+  const row = document.createElement("div"); row.className = "row";
+  const sc = document.createElement("span"); sc.append(`#${i + 1} · `);
+  const b = document.createElement("b"); b.textContent = r.score.toFixed(3); sc.append(b);
+  const link = document.createElement("button"); link.className = "link"; link.textContent = "Find images like this";
+  link.onclick = () => searchSimilar(r);
+  row.append(sc, link); card.append(p, row, scoreBar(r.score, max)); return card;
+}
+
+function searchSimilar(r) {
+  $("viewer").close(); clearImage(); $("q").value = "";
+  search({ ref: r.id });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+let viewing = null;
+function openViewer(r) {
+  viewing = r;
+  $("viewerImg").src = mediaUrl(r.path);
+  $("viewerName").textContent = `${r.path} · score ${r.score.toFixed(3)}`;
+  $("viewer").showModal();
+}
+$("viewerClose").onclick = () => $("viewer").close();
+$("viewerSimilar").onclick = () => viewing && searchSimilar(viewing);
+$("viewer").addEventListener("click", e => { if (e.target === $("viewer")) $("viewer").close(); });
+
+// ---------- status ----------
+$("reindex").onclick = async () => {
+  const r = await fetch("/api/reindex", { method: "POST" }).then(r => r.json()).catch(() => ({}));
+  if (r.started) pollStatus();
+};
+
+async function pollStatus() {
+  let s;
+  try { s = await fetch("/api/status").then(r => r.json()); }
+  catch { $("statusText").textContent = "Server not reachable"; $("dot").className = "dot err"; setTimeout(pollStatus, 3000); return; }
+
+  state.ready = s.model_loaded && (s.images + s.texts) > 0;
+  const hw = (s.gpu ? `${s.gpu} · ${s.dtype}` : `${s.device.toUpperCase()} · ${s.dtype}`) + ` · ${s.image_budget} tokens/image`;
+  const counts = `${s.images} images · ${s.texts} texts`;
+  const bar = $("progress"); const fill = bar.firstElementChild;
+  $("reindex").disabled = s.busy || !s.model_loaded;
+
+  if (s.phase === "error") {
+    $("dot").className = "dot err"; $("statusText").textContent = s.error; bar.style.display = "none"; return;
+  }
+  if (s.phase === "loading model" || s.phase === "starting") {
+    $("dot").className = "dot"; $("statusText").textContent = "Loading model (first run downloads it)…";
+    bar.style.display = "none"; setTimeout(pollStatus, 1500); return;
+  }
+  if (s.busy || s.phase === "indexing") {
+    state.wasBusy = true;
+    $("dot").className = "dot";
+    $("statusText").textContent = `Indexing ${s.done} / ${s.total} · ${hw}`;
+    bar.style.display = "block"; fill.style.width = (s.total ? 100 * s.done / s.total : 0) + "%";
+    setTimeout(pollStatus, 1000); return;
+  }
+  bar.style.display = "none";
+  $("dot").className = "dot ok";
+  const took = s.newly_indexed ? ` · indexed ${s.newly_indexed} new in ${s.last_index_seconds}s` : "";
+  $("statusText").textContent = `${counts} · ${hw}${took}`;
+  if (state.wasBusy) { state.wasBusy = false; rerun(); }
+  // Shareable searches: /?q=city+at+night runs that search once the index is ready.
+  const urlQuery = new URLSearchParams(location.search).get("q");
+  if (urlQuery && state.ready && !state.last) { $("q").value = urlQuery; submit(); }
+}
+pollStatus();
+</script>
+</body>
+</html>
